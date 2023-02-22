@@ -1,10 +1,11 @@
 package com.applaudo.akkalms.http
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.Timeout
+import com.applaudo.akkalms.actors.AuthorizationActor._
+import com.softwaremill.tagging.@@
 import io.circe.generic.auto._
-import spray.json.DefaultJsonProtocol
+import sttp.model.StatusCode
 import sttp.tapir.TapirAuth.bearer
 import sttp.tapir._
 import sttp.tapir.generic.auto._
@@ -16,45 +17,48 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-case class ProgressRequest(contentIds: List[Int], courseId: Int)
-
-trait ProgressJsonProtocol extends DefaultJsonProtocol {
-  implicit val progressRequestFormat = jsonFormat2(ProgressRequest)
-}
 
 
-class ProgressRouter(authorizationActor : ActorRef)
-  extends ProgressJsonProtocol
-    with  SprayJsonSupport{
-
+class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag) {
+  import akka.pattern.ask
+  import com.applaudo.akkalms.actors.AuthorizationActor._
 
   implicit val timeout = Timeout(3 seconds)
 
-  def securityLogic (token: String) : Future[Either[Unit, String]] =
-    Future.successful(Right("User Authorized"))
+  def securityLogic (token: String) : Future[Either[StatusCode, String]] = {
+    val authResult = (authorizationActor ? ProgressAuthorization(Option[String](token))).mapTo[Option[String]]
+    authResult.map {
+      case Some(value) => Right(value)
+      case None => Right("unauthorized")
+    }
+  }
 
-
-  val tapirEndpoint: Endpoint[String, (Long, ProgressRequest), Unit,  String, Any] =
+  val addProgress: Endpoint[String, (Long, ProgressRequest), StatusCode,  (StatusCode, String), Any] =
     endpoint
       .post
       .in("api" / "v1" / "programs" / path[Long]("programId") / "addProgress")
       .in(jsonBody[ProgressRequest])
       .securityIn(bearer[String]()) // to get the token without the Bearer prefix
+      .out(statusCode)
       .out(jsonBody[String])
-      //.out(statusCode)
+      .errorOut(statusCode)
       .description("To add progress to a specific content of a program")
 
-  val routes =
+  val addProgressEndpoint =
     AkkaHttpServerInterpreter()
-      .toRoute(tapirEndpoint
+      .toRoute(addProgress
         .serverSecurityLogic(securityLogic)
-        .serverLogic{(authorized: String) => (in : (Long,  ProgressRequest)) =>
-          Future.successful(Right(s"$authorized ${in._2.toString}"))
-        }
+        .serverLogic{(authorizedResult: String) => (in : (Long,  ProgressRequest)) =>
+          authorizedResult match {
+            case "authorized" =>
+              //TODO send request info to persist event
+              Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
+            case "unauthorized" => Future.successful(Left((StatusCode.Unauthorized)))
+          }
 
-        )
+        })
 
-  val apiEndpoints: List[AnyEndpoint] = List(tapirEndpoint)
+  val apiEndpoints: List[AnyEndpoint] = List(addProgress)
 
   // first interpret as swagger ui endpoints, backend by the appropriate yaml
   val swaggerEndpoints = SwaggerInterpreter().fromEndpoints[Future](apiEndpoints, "LMS Akka-http", "1.0")
@@ -62,7 +66,7 @@ class ProgressRouter(authorizationActor : ActorRef)
   // add to your akka routes
   val swaggerRoute = AkkaHttpServerInterpreter().toRoute(swaggerEndpoints)
 
-
+   //TODO for future persist command
    def persistCommand() = ???
 
 }

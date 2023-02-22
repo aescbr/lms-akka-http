@@ -9,6 +9,7 @@ lazy val cassandraVersion = "0.91"
 lazy val json4sVersion = "3.2.11"
 lazy val akkaHttpVersion = "10.2.10"
 lazy val tapirVersion = "1.2.8"
+lazy val macwireVersion = "2.5.8"
 
 // some libs are available in Bintray's JCenter
 resolvers += Resolver.jcenterRepo
@@ -17,9 +18,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   // akka streams
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+
   // akka http
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
@@ -34,7 +35,14 @@ libraryDependencies ++= Seq(
   // tapir
   "com.softwaremill.sttp.tapir" %% "tapir-akka-http-server" % tapirVersion,
   "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-  "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion
+  "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
+
+  //MacWire
+  "com.softwaremill.macwire" %% "macros" % macwireVersion % "provided",
+  "com.softwaremill.macwire" %% "macrosakka" % macwireVersion % "provided",
+  "com.softwaremill.macwire" %% "util" % macwireVersion,
+  "com.softwaremill.macwire" %% "proxy" % macwireVersion
+
 
 
 )

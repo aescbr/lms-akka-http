@@ -1,26 +1,29 @@
 package com.applaudo.akkalms
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import com.applaudo.akkalms.actors.{AuthorizationActor, CourseManager}
-import com.applaudo.akkalms.http.ProgressRouter
 import com.typesafe.config.ConfigFactory
 
 
-
-
 object MainApp extends App{
+  import com.softwaremill.macwire._
+  import com.softwaremill.macwire.akkasupport._
+  import com.applaudo.akkalms.http.ProgressRouter
+  import com.applaudo.akkalms.actors.AuthorizationActor._
+  import com.softwaremill.tagging.{@@, Tagger}
 
   implicit val system = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
 
-  val courseManager = system.actorOf(Props[CourseManager], "course-manager")
-  val authorizationActor = system.actorOf(Props[AuthorizationActor], "authorizationActor")
+  val courseManager = wireActor[CourseManager]("course-manager")
+  val authorizationActor : ActorRef @@ AuthorizationActorTag =
+    wireActor[AuthorizationActor]("authorization-actor").taggedWith[AuthorizationActorTag]
 
-  val progressRouter = new ProgressRouter(authorizationActor)
+  val progressRouter = wire[ProgressRouter]
 
-  Http().newServerAt( "localhost", 8080).bind(progressRouter.routes ~ progressRouter.swaggerRoute)
-
-
-
-}
+  Http().newServerAt( "localhost", 8080).bind(
+    progressRouter.addProgressEndpoint
+      ~ progressRouter.swaggerRoute
+  )
+ }
