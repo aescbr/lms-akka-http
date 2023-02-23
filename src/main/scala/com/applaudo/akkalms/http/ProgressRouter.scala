@@ -18,7 +18,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 
-
 class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag) {
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
