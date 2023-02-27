@@ -3,6 +3,7 @@ package com.applaudo.akkalms.http
 import akka.actor.ActorRef
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor._
+import com.applaudo.akkalms.actors.ProgressManager.{AddProgressRequest, ProgressManagerTag}
 import com.softwaremill.tagging.@@
 import io.circe.generic.auto._
 import sttp.model.StatusCode
@@ -18,7 +19,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 
-class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag) {
+class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
+                     progressManager: ActorRef @@ ProgressManagerTag) {
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
 
@@ -51,6 +53,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag) {
           authorizedResult match {
             case "authorized" =>
               //TODO send request info to persist event
+              progressManager ! AddProgressRequest(in._1, in._2, "user")
               Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
             case "unauthorized" => Future.successful(Left((StatusCode.Unauthorized)))
           }

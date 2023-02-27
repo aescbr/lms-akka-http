@@ -3,7 +3,8 @@ package com.applaudo.akkalms
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import com.applaudo.akkalms.actors.{AuthorizationActor, CourseManager}
+import com.applaudo.akkalms.actors.ProgressManager.ProgressManagerTag
+import com.applaudo.akkalms.actors.{AuthorizationActor, ProgressManager}
 import com.typesafe.config.ConfigFactory
 
 
@@ -16,7 +17,8 @@ object MainApp extends App{
 
   implicit val system = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
 
-  val courseManager = wireActor[CourseManager]("course-manager")
+  val progressManager : ActorRef @@ ProgressManagerTag =
+    wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
   val authorizationActor : ActorRef @@ AuthorizationActorTag =
     wireActor[AuthorizationActor]("authorization-actor").taggedWith[AuthorizationActorTag]
 
