@@ -1,16 +1,21 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
+import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+import com.softwaremill.macwire.akkasupport.wireActor
+import com.softwaremill.tagging.@@
 
 
 object ProgressManager {
   case class AddProgressRequest(programId: Long, request: ProgressRequest, userEmail: String)
   trait ProgressManagerTag
+  trait ProgramIdTag
+  trait CourseIdTag
 
 }
 
-class ProgressManager extends Actor with ActorLogging {
+class ProgressManager(latestManager: ActorRef @@ LatestManagerTag) extends Actor with ActorLogging {
   import ProgressActor._
   import ProgressManager._
 
@@ -23,7 +28,7 @@ class ProgressManager extends Actor with ActorLogging {
   override def receive: Receive = {
     case AddProgressRequest(programId, request, email) =>
       val progressActor = getChild(programId, request.courseId)
-      println(progressActor)
+      //println(progressActor)
       progressActor ! AddProgress(request, email)
   }
 
@@ -35,7 +40,8 @@ class ProgressManager extends Actor with ActorLogging {
         child
       case None =>
         log.warning("actor NOT found")
-        context.actorOf(Props(new ProgressActor(programId, courseId)), name)
+        context.actorOf(Props(new ProgressActor(programId, courseId, latestManager)), name)
+
     }
   }
 }

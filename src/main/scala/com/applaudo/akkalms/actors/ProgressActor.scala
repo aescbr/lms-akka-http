@@ -1,8 +1,10 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.ActorLogging
+import akka.actor.{ActorLogging, ActorRef}
 import akka.persistence.PersistentActor
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
+import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+import com.softwaremill.tagging.@@
 
 object ProgressActor {
   trait ProgressEvent
@@ -10,6 +12,7 @@ object ProgressActor {
 
   trait ProgressCommand
   case class AddProgress(request: ProgressRequest, userEmail: String) extends ProgressCommand
+  object CreateSnapshot extends ProgressCommand
 
   case class ProgramT(id: Int, name: String)
   case class CourseT(id: Int, name: String)
@@ -17,7 +20,8 @@ object ProgressActor {
   case class UserT(id: Int, firstname: String, lastname: String, email: String)
 }
 
-class ProgressActor(programId: Long, courseId: Long) extends PersistentActor with ActorLogging{
+class ProgressActor(programId: Long, courseId: Long, latestManager: ActorRef @@ LatestManagerTag)
+  extends PersistentActor with ActorLogging{
   import ProgressActor._
 
   def contentsAvailable: List[ContentT] = ???
@@ -34,14 +38,19 @@ class ProgressActor(programId: Long, courseId: Long) extends PersistentActor wit
 
   override def receiveCommand: Receive  = {
     case AddProgress(request, email) =>
+      //TODO validate contents and user
       request.contentIds.foreach{ contentId =>
         val progress = SaveProgress(programId, courseId, contentId, email)
-        persist(progress){ e =>
-        log.info(s"saving $e")
+        persist(progress){ event =>
+        log.info(s"saving $event")
+        sendLatest(event)
         progressList = progressList.::(progress)
       }
     }
   }
 
   override def persistenceId: String = s"progress-actor-$programId-$courseId"
+
+  def sendLatest(progress : SaveProgress) =
+    latestManager ! progress
 }
