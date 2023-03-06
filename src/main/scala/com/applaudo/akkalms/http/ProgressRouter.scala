@@ -21,12 +21,13 @@ import scala.concurrent.duration.DurationInt
 
 class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
                      progressManager: ActorRef @@ ProgressManagerTag) {
+
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
 
   implicit val timeout = Timeout(3 seconds)
 
-  def securityLogic (token: String) : Future[Either[StatusCode, String]] = {
+  def securityLogic(token: String): Future[Either[StatusCode, String]] = {
     val authResult = (authorizationActor ? ProgressAuthorization(Option[String](token))).mapTo[Option[String]]
     authResult.map {
       case Some(value) => Right(value)
@@ -34,7 +35,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     }
   }
 
-  val addProgress: Endpoint[String, (Long, ProgressRequest), StatusCode,  (StatusCode, String), Any] =
+  val addProgress: Endpoint[String, (Long, ProgressRequest), StatusCode, (StatusCode, String), Any] =
     endpoint
       .post
       .in("api" / "v1" / "programs" / path[Long]("programId") / "addProgress")
@@ -49,15 +50,15 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     AkkaHttpServerInterpreter()
       .toRoute(addProgress
         .serverSecurityLogic(securityLogic)
-        .serverLogic{(authorizedResult: String) => (in : (Long,  ProgressRequest)) =>
-          authorizedResult match {
-            case "authorized" =>
-              //TODO send request info to persist event
-              progressManager ! AddProgressRequest(in._1, in._2, "user")
-              Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
-            case "unauthorized" => Future.successful(Left((StatusCode.Unauthorized)))
-          }
-
+        .serverLogic { (authorizedResult: String) =>
+          (in: (Long, ProgressRequest)) =>
+            authorizedResult match {
+              case "authorized" =>
+                //persist event
+                progressManager ! AddProgressRequest(in._1, in._2, "user@applaudostudios.com")
+                Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
+              case "unauthorized" => Future.successful(Left((StatusCode.Unauthorized)))
+            }
         })
 
   val apiEndpoints: List[AnyEndpoint] = List(addProgress)
@@ -68,7 +69,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
   // add to your akka routes
   val swaggerRoute = AkkaHttpServerInterpreter().toRoute(swaggerEndpoints)
 
-   //TODO for future persist command
-   def persistCommand() = ???
+  //TODO for future persist command
+  def persistCommand() = ???
 
 }
