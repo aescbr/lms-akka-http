@@ -7,3 +7,16 @@ services:
       - 9042:9042
     environment:
       - CASSANDRA_CLUSTER_NAME=akka-cassandra-cluster
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=latest
+      - POSTGRES_PASSWORD=latest
+    ports:
+      - '5432:5432'
+    volumes:
+      - db:/var/lib/postgresql/data
+volumes:
+  db:
+    driver: local
