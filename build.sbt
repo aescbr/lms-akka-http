@@ -15,6 +15,7 @@ lazy val macwireVersion = "2.5.8"
 resolvers += Resolver.jcenterRepo
 
 libraryDependencies ++= Seq(
+   "com.typesafe" % "config" % "1.4.2",
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   // akka streams
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
