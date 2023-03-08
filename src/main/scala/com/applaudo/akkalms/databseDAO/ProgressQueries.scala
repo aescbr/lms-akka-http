@@ -14,7 +14,7 @@ object ProgressQueries {
 
   val xa = PostgresDAO.xa
 
-  def insertProgress(progress: ProgressModel): Int = {
+  def insert(progress: ProgressModel): Int = {
     sql"""
       INSERT INTO course_progress (program_id, course_id, content_id, user_id, completed, total)
       VALUES(${progress.programId}, ${progress.courseId}, ${progress.contentId}, ${progress.userId},

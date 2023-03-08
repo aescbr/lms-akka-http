@@ -48,7 +48,14 @@ import ProgramManager._
       val content = registeredContent.get(contentId)
       content match {
         case Some(value) =>
-          sender() ! Some(ProgressModel(programId, courseId , contentId, userId, completed , value.total))
+          var completedCheck = 0
+          if(completed > value.total)
+            completedCheck = value.total
+          else if(completed < 0)
+            completedCheck = 0
+          else
+            completedCheck = completed
+          sender() ! Some(ProgressModel(programId, courseId , contentId, userId, completedCheck , value.total))
         case None =>
           sender() ! None
       }

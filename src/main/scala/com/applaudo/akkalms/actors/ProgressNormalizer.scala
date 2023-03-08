@@ -12,6 +12,6 @@ class ProgressNormalizer extends Actor with ActorLogging {
       log.info("--progress Normalizer")
 
       //save progress to postgresql
-      ProgressQueries.insertProgress(ProgressModel(programId, courseId, contentId, userId, completed, total))
+      ProgressQueries.insert(ProgressModel(programId, courseId, contentId, userId, completed, total))
   }
 }
