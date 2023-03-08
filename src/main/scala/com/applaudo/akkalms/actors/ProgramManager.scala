@@ -9,10 +9,7 @@ object ProgramManager {
   case class CourseT(name: String, description: String)
   case class ContentT(name: String, description: String, total: Int)
   case class UserT(firstname: String, lastname: String, email: String)
-
-  trait ProgramManagerMessage
-  case class ProgressModel(programId: Long, courseId: Long, contentId: Long, userId: Long, completed: Int,
-                           total: Int) extends ProgramManagerMessage
+  case class ProgressModel(programId: Long, courseId: Long, contentId: Long, userId: Long, completed: Int, total: Int)
 
   trait ProgramManagerTag
 }
@@ -52,6 +49,12 @@ import ProgramManager._
       content match {
         case Some(value) =>
           sender() ! Some(ProgressModel(programId, courseId , contentId, userId, completed , value.total))
+        case None =>
+          sender() ! None
       }
+  }
+
+  def validateRequest(): Unit ={
+
   }
 }

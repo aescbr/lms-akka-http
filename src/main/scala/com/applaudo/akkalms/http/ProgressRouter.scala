@@ -35,10 +35,10 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     }
   }
 
-  val addProgress: Endpoint[String, (Long, ProgressRequest), StatusCode, (StatusCode, String), Any] =
+  val addProgress: Endpoint[String, (Long, Long, ProgressRequest), StatusCode, (StatusCode, String), Any] =
     endpoint
       .post
-      .in("api" / "v1" / "programs" / path[Long]("programId") / "addProgress")
+      .in("api" / "v1" / "programs" / path[Long]("programId") / "courses" /path[Long]("courseId") /"addProgress")
       .in(jsonBody[ProgressRequest])
       .securityIn(bearer[String]()) // to get the token without the Bearer prefix
       .out(statusCode)
@@ -51,12 +51,13 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
       .toRoute(addProgress
         .serverSecurityLogic(securityLogic)
         .serverLogic { (authorizedResult: String) =>
-          (in: (Long, ProgressRequest)) =>
+          (in: (Long, Long, ProgressRequest)) =>
             authorizedResult match {
               case "authorized" =>
-                //persist event
-                progressManager ! AddProgressRequest(in._1, in._2, 1L)
-                Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
+                //persist event,
+                // here we should have userId from authorization
+                progressManager ! AddProgressRequest(in._1, in._2, in._3, 1L)
+                Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._3.toString}")))
               case "unauthorized" => Future.successful(Left(StatusCode.Unauthorized))
             }
         })

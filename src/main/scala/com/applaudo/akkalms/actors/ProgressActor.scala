@@ -12,12 +12,12 @@ object ProgressActor {
                           completed: Int) extends ProgressEvent
 
   trait ProgressCommand
-  case class AddProgress(request: ProgressRequest, userId: Long) extends ProgressCommand
+  case class AddProgress(request: ProgressRequest) extends ProgressCommand
   object CreateSnapshot extends ProgressCommand
 
 }
 
-class ProgressActor(programId: Long, courseId: Long, latestManager: ActorRef @@ LatestManagerTag)
+class ProgressActor(programId: Long, courseId: Long, userId: Long, latestManager: ActorRef @@ LatestManagerTag)
   extends PersistentActor with ActorLogging{
   import ProgressActor._
 
@@ -31,9 +31,9 @@ class ProgressActor(programId: Long, courseId: Long, latestManager: ActorRef @@ 
   }
 
   override def receiveCommand: Receive  = {
-    case AddProgress(request, userId) =>
+    case ProgressRequest(contents) =>
       //TODO validate contents and user
-      request.contents.foreach{ content =>
+      contents.foreach{ content =>
         val progress = SaveProgress(programId, courseId, content.contentId, userId, content.completed)
         persist(progress){ event: SaveProgress =>
         log.info(s"saving $event")
@@ -44,9 +44,9 @@ class ProgressActor(programId: Long, courseId: Long, latestManager: ActorRef @@ 
     }
   }
 
-  override def persistenceId: String = s"progress-actor-$programId-$courseId"
+  override def persistenceId: String = s"progress-actor-$programId-$courseId-$userId"
 
-  def sendLatest(progress : SaveProgress) =
+  def sendLatest(progress : SaveProgress): Unit =
     latestManager ! progress
 
   //TODO Course Manger (programId, courseId, contentId) return case class

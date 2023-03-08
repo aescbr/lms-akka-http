@@ -22,20 +22,24 @@ class LatestManager(programManager: ActorRef @@ ProgramManagerTag) extends Actor
   override def receive: Receive = {
     case SaveProgress(programId, courseId, contentId, userId, completed) =>
       log.info("--latest manger")
-      //get progress model from ProgramManager
-      val progressModel = (programManager ? SaveProgress(programId, courseId, contentId, userId, completed))
+      val saveProgress = SaveProgress(programId, courseId, contentId, userId, completed)
+
+      //validate and get progress model from ProgramManager
+      val progressModel = (programManager ? saveProgress)
         .mapTo[Option[ProgressModel]]
       //find or init child normalizer
-      val normalizer = getNormalizerChild("progress-normalizer")
+      val normalizer = getProgressNormalizerChild("progress-normalizer")
       // send message
      progressModel.map{
        case Some(progress) =>
          log.info(progress.toString)
          normalizer ! progress
+       case None =>
+         log.error(s"Invalid progress request information $saveProgress")
      }
   }
 
-  def getNormalizerChild(name: String): ActorRef = {
+  def getProgressNormalizerChild(name: String): ActorRef = {
     context.child(name) match {
       case Some(child) =>
         log.info("actor found")
