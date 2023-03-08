@@ -55,9 +55,9 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
             authorizedResult match {
               case "authorized" =>
                 //persist event
-                progressManager ! AddProgressRequest(in._1, in._2, "user@applaudostudios.com")
+                progressManager ! AddProgressRequest(in._1, in._2, 1L)
                 Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._2.toString}")))
-              case "unauthorized" => Future.successful(Left((StatusCode.Unauthorized)))
+              case "unauthorized" => Future.successful(Left(StatusCode.Unauthorized))
             }
         })
 
