@@ -9,7 +9,8 @@ object AuthorizationActor{
   sealed trait AuthorizationMessage
 
   case class ProgressAuthorization(token: Option[String]) extends AuthorizationMessage
-  case class ProgressRequest(contentIds: List[Int], courseId: Int)
+  case class ProgressRequest(contents: List[ContentProgress], courseId: Int)
+  case class ContentProgress(contentId: Long, completed: Int)
 
 }
 
