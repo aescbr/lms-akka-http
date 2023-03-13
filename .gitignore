@@ -41,4 +41,6 @@ bin/
 # general
 *.class
 /.idea/*
-/.idea/**
+/.idea/
+
+scr/main/resources/application.conf
