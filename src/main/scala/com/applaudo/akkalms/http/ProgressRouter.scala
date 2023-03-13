@@ -1,6 +1,7 @@
 package com.applaudo.akkalms.http
 
 import akka.actor.ActorRef
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor._
 import com.applaudo.akkalms.actors.ProgressManager.{AddProgressRequest, ProgressManagerTag}
@@ -25,7 +26,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
 
-  implicit val timeout = Timeout(3 seconds)
+  implicit val timeout: Timeout = Timeout(3 seconds)
 
   def securityLogic(token: String): Future[Either[StatusCode, String]] = {
     val authResult = (authorizationActor ? ProgressAuthorization(Option[String](token))).mapTo[Option[String]]
@@ -35,18 +36,17 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     }
   }
 
-  val addProgress: Endpoint[String, (Long, Long, ProgressRequest), StatusCode, (StatusCode, String), Any] =
+  val addProgress: Endpoint[String, (Long, Long, ProgressRequest), StatusCode, StatusCode, Any] =
     endpoint
       .post
       .in("api" / "v1" / "programs" / path[Long]("programId") / "courses" /path[Long]("courseId") /"addProgress")
       .in(jsonBody[ProgressRequest])
       .securityIn(bearer[String]()) // to get the token without the Bearer prefix
       .out(statusCode)
-      .out(jsonBody[String])
       .errorOut(statusCode)
       .description("To add progress to a specific content of a program")
 
-  val addProgressEndpoint =
+  val addProgressEndpoint: Route =
     AkkaHttpServerInterpreter()
       .toRoute(addProgress
         .serverSecurityLogic(securityLogic)
@@ -57,7 +57,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
                 //persist event,
                 // here we should have userId from authorization
                 progressManager ! AddProgressRequest(in._1, in._2, in._3, 1L)
-                Future.successful(Right((StatusCode.Created, s"$authorizedResult ${in._3.toString}")))
+                Future.successful(Right(StatusCode.Created))
               case "unauthorized" => Future.successful(Left(StatusCode.Unauthorized))
             }
         })
