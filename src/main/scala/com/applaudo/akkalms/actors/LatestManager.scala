@@ -21,7 +21,6 @@ class LatestManager(programManager: ActorRef @@ ProgramManagerTag) extends Actor
 
   override def receive: Receive = {
     case SaveProgress(programId, courseId, contentId, userId, completed) =>
-      log.info("--latest manger")
       val saveProgress = SaveProgress(programId, courseId, contentId, userId, completed)
 
       //validate and get progress model from ProgramManager

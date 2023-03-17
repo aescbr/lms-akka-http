@@ -18,7 +18,7 @@ class ProgramManager extends Actor with ActorLogging{
 import ProgramManager._
 
   //TODO delegate to a ProgramActor, in memory state by program, simulated with maps
-  var programsRegistered: Map[Long, ProgramT] = Map(
+  var registeredPrograms: Map[Long, ProgramT] = Map(
     1L -> ProgramT("Scala cross-training", "designed for Applaudo employees to level up Scala and Akka skills", 1)
   )
 
@@ -44,24 +44,60 @@ import ProgramManager._
 
   override def receive: Receive = {
     case SaveProgress(programId,courseId,contentId,userId,completed) =>
-      log.info("--program Manager")
-      val content = registeredContent.get(contentId)
-      content match {
-        case Some(value) =>
-          var completedCheck = 0
-          if(completed > value.total)
-            completedCheck = value.total
-          else if(completed < 0)
-            completedCheck = 0
-          else
-            completedCheck = completed
-          sender() ! Some(ProgressModel(programId, courseId , contentId, userId, completedCheck , value.total))
-        case None =>
-          sender() ! None
+      if(validateRequest(programId,courseId,contentId,userId)){
+        val contentTuple = validateCompleted(contentId, completed)
+        sender() ! Some(ProgressModel(programId, courseId , contentId, userId, contentTuple._1,
+          contentTuple._2))
+      } else {
+        sender() ! None
       }
   }
 
-  def validateRequest(): Unit ={
+  def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {
+    val regContent = registeredContent.get(contentId)
 
+      regContent match {
+      case Some(content) =>
+        if (completed > content.total)
+          (content.total, content.total)
+        else if (completed < 0)
+          (0, content.total)
+        else (completed, content.total)
+    }
+  }
+
+  //TODO validate request
+  def validateRequest(programId: Long, courseId: Long, contentId: Long, userId: Long): Boolean ={
+    var flag = true
+    val program = registeredPrograms.get(programId)
+    val course = registeredCourses.get(courseId)
+    val content = registeredContent.get(contentId)
+    val user = registeredUsers.get(userId)
+
+    program match {
+      case None =>
+        flag = false
+        log.error(s"program with id: ${programId}, not found")
+      case Some(_) => ()
+    }
+    course match {
+      case None =>
+        flag = false
+        log.error(s"course with id: ${courseId}, not found")
+      case Some(_) => ()
+    }
+    content match {
+      case None =>
+        flag = false
+        log.error(s"content with id: ${contentId}, not found")
+      case Some(_) => ()
+    }
+    user match {
+      case None =>
+        flag = false
+        log.error(s"user with id: ${userId}, not found")
+      case Some(_) => ()
+    }
+    flag
   }
 }

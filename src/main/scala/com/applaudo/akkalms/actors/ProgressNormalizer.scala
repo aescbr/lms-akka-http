@@ -9,8 +9,6 @@ class ProgressNormalizer extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
-      log.info("--progress Normalizer")
-
       //save progress to postgresql
       ProgressQueries.insert(ProgressModel(programId, courseId, contentId, userId, completed, total))
   }

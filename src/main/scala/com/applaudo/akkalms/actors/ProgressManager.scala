@@ -8,18 +8,11 @@ import com.softwaremill.tagging.@@
 
 object ProgressManager {
   case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
-
   trait ProgressManagerTag
-
-  trait ProgramIdTag
-
-  trait CourseIdTag
 
 }
 
 class ProgressManager(latestManager: ActorRef @@ LatestManagerTag) extends Actor with ActorLogging {
-
-  import ProgressActor._
   import ProgressManager._
 
 

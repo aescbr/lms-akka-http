@@ -32,7 +32,6 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long, latestManager
 
   override def receiveCommand: Receive  = {
     case ProgressRequest(contents) =>
-      //TODO validate contents and user
       contents.foreach{ content =>
         val progress = SaveProgress(programId, courseId, content.contentId, userId, content.completed)
         persist(progress){ event: SaveProgress =>

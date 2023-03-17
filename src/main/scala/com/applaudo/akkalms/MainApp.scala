@@ -18,7 +18,7 @@ object MainApp extends App{
   import com.softwaremill.macwire.akkasupport._
   import com.softwaremill.tagging.{@@, Tagger}
 
-  implicit val system = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
+  implicit val system: ActorSystem = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
 
   val programManager : ActorRef @@ ProgramManagerTag = wireActor[ProgramManager]("program-manager")
     .taggedWith[ProgramManagerTag]
