@@ -12,6 +12,9 @@ object AuthorizationActor{
   case class ProgressRequest(contents: List[ContentProgress])
   case class ContentProgress(contentId: Long, completed: Int)
 
+  trait AuthorizationResponse
+  case class AuthorizedUser(userId: Long) extends AuthorizationResponse
+  object UnauthorizedUser extends AuthorizationResponse
 }
 
 class AuthorizationActor extends Actor with ActorLogging{
@@ -24,17 +27,17 @@ class AuthorizationActor extends Actor with ActorLogging{
           if (value == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwia" +
             "WF0IjoxNTE2MjM5MDIyLCJleHAiOjE2NzY5MjU3NzEsImVtYWlsIjoidXNlckBhcHBsYXVkb3N0dWRpb3MuY29tIn0.REOkxtQvAP" +
             "PcAJRGOFwqiYjTVozyiYYqWSqI5cMBGnQ"){
-            log.info("valid user....")
-            sender() ! Some("authorized")
+            log.info("authorized user")
+            sender() ! AuthorizedUser(userId = 1L)
           }
           else {
             log.error("unauthorized user")
-            sender() ! None
+            sender() ! UnauthorizedUser
           }
 
         case None =>
           log.error("unauthorized user")
-          sender() ! None
+          sender() ! UnauthorizedUser
       }
     }
 
