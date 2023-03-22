@@ -2,6 +2,7 @@ package com.applaudo.akkalms.actors
 
 import akka.actor.{Actor, ActorLogging}
 import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
+import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 
 object ProgramManager {
   //model classes
@@ -43,14 +44,23 @@ import ProgramManager._
   )
 
   override def receive: Receive = {
-    case SaveProgress(programId,courseId,contentId,userId,completed) =>
-      if(validateRequest(programId,courseId,contentId,userId)){
-        val contentTuple = validateCompleted(contentId, completed)
-        sender() ! Some(ProgressModel(programId, courseId , contentId, userId, contentTuple._1,
-          contentTuple._2))
-      } else {
-        sender() ! None
+    case AddProgressRequest(programId, courseId, request, userId) =>
+      log.info("here")
+      var validList = List[ProgressModel]()
+      var invalidList = List[SaveProgress]()
+
+      request.contents.foreach{ content =>
+        val progress = SaveProgress(programId, courseId, content.contentId, userId, content.completed)
+        if(validateRequest(programId, courseId, content.contentId, userId)){
+          val contentTuple = validateCompleted(content.contentId, content.completed)
+          validList = validList.::(ProgressModel(programId, courseId, content.contentId, userId,
+            contentTuple._1, contentTuple._2))
+        }else {
+          invalidList = invalidList.::(progress)
+        }
       }
+
+      sender() ! (validList, invalidList)
   }
 
   def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {
