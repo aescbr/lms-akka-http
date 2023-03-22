@@ -23,15 +23,15 @@ object MainApp extends App{
   val programManager : ActorRef @@ ProgramManagerTag = wireActor[ProgramManager]("program-manager")
     .taggedWith[ProgramManagerTag]
 
-  def initLatestManager(programManager: ActorRef @@ ProgramManagerTag) : ActorRef @@ LatestManagerTag =
-    wireActor[LatestManager]("latest-manager").taggedWith[LatestManagerTag]
+    val latestManager : ActorRef @@ LatestManagerTag = wireActor[LatestManager]("latest-manager")
+    .taggedWith[LatestManagerTag]
 
-  val latestManager : ActorRef @@ LatestManagerTag = initLatestManager(programManager :ActorRef @@ ProgramManagerTag)
-
-  def initProgressManager(latestManager: ActorRef @@ LatestManagerTag) : ActorRef @@ ProgressManagerTag =
+  def initProgressManager(latestManager: ActorRef @@ LatestManagerTag,
+                          programManager : ActorRef @@ ProgramManagerTag) : ActorRef @@ ProgressManagerTag =
      wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
 
-  val progressManager = initProgressManager(latestManager : ActorRef @@ LatestManagerTag)
+  val progressManager = initProgressManager(latestManager : ActorRef @@ LatestManagerTag,
+                                            programManager : ActorRef @@ ProgramManagerTag)
 
   val authorizationActor : ActorRef @@ AuthorizationActorTag =
     wireActor[AuthorizationActor]("authorization-actor").taggedWith[AuthorizationActorTag]
