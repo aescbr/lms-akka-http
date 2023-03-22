@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.persistence.PersistentActor
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.softwaremill.tagging.@@
 
 object ProgressActor {
@@ -31,21 +32,21 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long, latestManager
   }
 
   override def receiveCommand: Receive  = {
-    case ProgressRequest(contents) =>
-      contents.foreach{ content =>
-        val progress = SaveProgress(programId, courseId, content.contentId, userId, content.completed)
-        persist(progress){ event: SaveProgress =>
+    case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
+      val model = ProgressModel(programId, courseId, contentId, userId, completed, total)
+      val progress = SaveProgress(programId, courseId, contentId, userId, completed)
+      persist(progress){ event: SaveProgress =>
         log.info(s"saving $event")
         //
-        sendLatest(event)
+        sendLatest(model)
         progressList = progressList.::(progress)
       }
-    }
+
   }
 
   override def persistenceId: String = s"progress-actor-$programId-$courseId-$userId"
 
-  def sendLatest(progress : SaveProgress): Unit =
+  def sendLatest(progress : ProgressModel): Unit =
     latestManager ! progress
 
   //TODO Course Manger (programId, courseId, contentId) return case class
