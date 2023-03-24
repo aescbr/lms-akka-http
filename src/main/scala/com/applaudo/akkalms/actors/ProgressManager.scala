@@ -4,46 +4,52 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
+import com.applaudo.akkalms.actors.GuardianActor.{CreateProgramManager, GuardianActorTag}
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
-import com.applaudo.akkalms.actors.ProgramManager.{ProgramManagerTag, ProgressModel}
+import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
 import com.softwaremill.tagging.@@
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 
 object ProgressManager {
   case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
+
   case class SelfMessage(request: AddProgressRequest, validation: (List[ProgressModel], List[SaveProgress]))
+
   trait ProgressManagerTag
 
 }
 
-class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
-                      latestManager: ActorRef @@ LatestManagerTag) extends Actor with ActorLogging {
+class ProgressManager()
+                     (implicit guardianActor: ActorRef @@ GuardianActorTag) extends Actor with ActorLogging {
+
   import ProgressManager._
 
-  implicit val timeout: Timeout = Timeout(3 seconds)
+  implicit val timeout: Timeout = Timeout(10 seconds)
 
   override def receive: Receive = {
     case AddProgressRequest(programId, courseId, request, userId) =>
-
+      val router = sender()
       //validation
-      val progressRequest =  AddProgressRequest(programId, courseId, request, userId)
-      val result = (programManager ? progressRequest).mapTo[(List[ProgressModel], List[SaveProgress])]
-      result.map{ tuple =>
-        SelfMessage(progressRequest,tuple)
-      }.pipeTo(self)(sender())
+      val progressRequest = AddProgressRequest(programId, courseId, request, userId)
+      val futureGuardian = getProgramManager
 
-    case SelfMessage(request: AddProgressRequest, validation: (List[ProgressModel], List[SaveProgress])) =>
-      if(validation._1.nonEmpty && validation._2.isEmpty){
-        val progressActor = getChild(request.programId, request.courseId, request.userId)
-        validation._1.foreach{ p =>
-          progressActor ! p
+      futureGuardian.map {
+        programManager: ActorRef => {
+          val result = (programManager ? progressRequest).mapTo[(List[ProgressModel], List[SaveProgress])]
+          result.map { validation =>
+            if (validation._1.nonEmpty && validation._2.isEmpty) {
+              val progressActor = getChild(programId, courseId, userId)
+              validation._1.foreach { p => progressActor ! p }
+            }
+            result.pipeTo(router)
+          }
         }
       }
-      sender() ! validation
   }
 
   def getChild(programId: Long, courseId: Long, userId: Long): ActorRef = {
@@ -52,7 +58,11 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
       case Some(child) =>
         child
       case None =>
-        context.actorOf(Props(new ProgressActor(programId, courseId, userId, latestManager)), name)
+        context.actorOf(Props(new ProgressActor(programId, courseId, userId)), name)
     }
+  }
+
+  def getProgramManager : Future[ActorRef] = {
+    (guardianActor ? CreateProgramManager).mapTo[ActorRef]
   }
 }

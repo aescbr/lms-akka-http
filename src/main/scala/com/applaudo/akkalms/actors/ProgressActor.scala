@@ -2,10 +2,16 @@ package com.applaudo.akkalms.actors
 
 import akka.actor.{ActorLogging, ActorRef}
 import akka.persistence.PersistentActor
+import akka.pattern.ask
+import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
-import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+import com.applaudo.akkalms.actors.GuardianActor.{CreateLatestManager, GuardianActorTag}
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.softwaremill.tagging.@@
+
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object ProgressActor {
   trait ProgressEvent
@@ -18,11 +24,13 @@ object ProgressActor {
 
 }
 
-class ProgressActor(programId: Long, courseId: Long, userId: Long, latestManager: ActorRef @@ LatestManagerTag)
-  extends PersistentActor with ActorLogging{
+class ProgressActor(programId: Long, courseId: Long, userId: Long)
+                   (implicit guardianActor: ActorRef @@ GuardianActorTag) extends PersistentActor with ActorLogging{
   import ProgressActor._
 
   var progressList: List[SaveProgress] = List[SaveProgress]()
+
+  implicit val timeout: Timeout = Timeout(10 seconds)
 
   override def receiveRecover: Receive = {
     case SaveProgress(programId, courseId, contentId, userId, completed) =>
@@ -33,22 +41,25 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long, latestManager
 
   override def receiveCommand: Receive  = {
     case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
-      val model = ProgressModel(programId, courseId, contentId, userId, completed, total)
-      val progress = SaveProgress(programId, courseId, contentId, userId, completed)
+      val model = ProgressModel(programId, courseId, contentId, userId, completed, total) //model
+      val progress = SaveProgress(programId, courseId, contentId, userId, completed) //event
+
       persist(progress){ event: SaveProgress =>
         log.info(s"saving $event")
         //
-        sendLatest(model)
+        val futureGuardian = getLatestManager
+        futureGuardian.map {
+          latestManager: ActorRef => {
+            latestManager ! model
+          }
+        }
         progressList = progressList.::(progress)
       }
-
   }
 
   override def persistenceId: String = s"progress-actor-$programId-$courseId-$userId"
 
-  def sendLatest(progress : ProgressModel): Unit =
-    latestManager ! progress
-
-  //TODO Course Manger (programId, courseId, contentId) return case class
-  def getContentTotalFromManger(saveProgress: SaveProgress) : Int = ???
+  def getLatestManager : Future[ActorRef] = {
+    (guardianActor ? CreateLatestManager).mapTo[ActorRef]
+  }
 }

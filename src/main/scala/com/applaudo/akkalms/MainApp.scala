@@ -3,14 +3,15 @@ package com.applaudo.akkalms
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import com.applaudo.akkalms.actors.ProgramManager
-import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
+import com.applaudo.akkalms.actors.{GuardianActor, ProgramManager}
 import com.typesafe.config.ConfigFactory
 
 
 object MainApp extends App{
   import com.applaudo.akkalms.actors.AuthorizationActor._
+  import com.applaudo.akkalms.actors.GuardianActor.GuardianActorTag
   import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+  import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
   import com.applaudo.akkalms.actors.ProgressManager.ProgressManagerTag
   import com.applaudo.akkalms.actors.{AuthorizationActor, LatestManager, ProgressManager}
   import com.applaudo.akkalms.http.ProgressRouter
@@ -20,18 +21,14 @@ object MainApp extends App{
 
   implicit val system: ActorSystem = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
 
+
+  implicit val guardianActor: ActorRef @@ GuardianActorTag = wireActor[GuardianActor]("guardian-actor")
+    .taggedWith[GuardianActorTag]
+
   val programManager : ActorRef @@ ProgramManagerTag = wireActor[ProgramManager]("program-manager")
     .taggedWith[ProgramManagerTag]
 
-    val latestManager : ActorRef @@ LatestManagerTag = wireActor[LatestManager]("latest-manager")
-    .taggedWith[LatestManagerTag]
-
-  def initProgressManager(latestManager: ActorRef @@ LatestManagerTag,
-                          programManager : ActorRef @@ ProgramManagerTag) : ActorRef @@ ProgressManagerTag =
-     wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
-
-  val progressManager = initProgressManager(latestManager : ActorRef @@ LatestManagerTag,
-                                            programManager : ActorRef @@ ProgramManagerTag)
+  val progressManager = wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
 
   val authorizationActor : ActorRef @@ AuthorizationActorTag =
     wireActor[AuthorizationActor]("authorization-actor").taggedWith[AuthorizationActorTag]
