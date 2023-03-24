@@ -15,6 +15,7 @@ import scala.concurrent.duration.DurationInt
 
 object ProgressManager {
   case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
+  case class SelfMessage(request: AddProgressRequest, validation: (List[ProgressModel], List[SaveProgress]))
   trait ProgressManagerTag
 
 }
@@ -31,18 +32,18 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
       //validation
       val progressRequest =  AddProgressRequest(programId, courseId, request, userId)
       val result = (programManager ? progressRequest).mapTo[(List[ProgressModel], List[SaveProgress])]
-      result.pipeTo(sender())
+      result.map{ tuple =>
+        SelfMessage(progressRequest,tuple)
+      }.pipeTo(self)(sender())
 
-      //if there are no invalid progress persist valid list
-      result.map{
-        case (validList, invalid) =>
-          if(validList.nonEmpty && invalid.isEmpty){
-            val progressActor = getChild(programId, courseId, userId)
-            validList.foreach{ p =>
-              progressActor ! p
-            }
-          }
+    case SelfMessage(request: AddProgressRequest, validation: (List[ProgressModel], List[SaveProgress])) =>
+      if(validation._1.nonEmpty && validation._2.isEmpty){
+        val progressActor = getChild(request.programId, request.courseId, request.userId)
+        validation._1.foreach{ p =>
+          progressActor ! p
+        }
       }
+      sender() ! validation
   }
 
   def getChild(programId: Long, courseId: Long, userId: Long): ActorRef = {

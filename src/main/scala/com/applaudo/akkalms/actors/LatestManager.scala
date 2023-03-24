@@ -20,7 +20,6 @@ class LatestManager extends Actor with ActorLogging{
 
   override def receive: Receive = {
     case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
-      log.info("here")
       val progress = ProgressModel(programId, courseId, contentId, userId, completed, total)
 
       //find or init child normalizer

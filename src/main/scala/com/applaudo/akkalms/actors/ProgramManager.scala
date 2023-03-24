@@ -45,7 +45,6 @@ import ProgramManager._
 
   override def receive: Receive = {
     case AddProgressRequest(programId, courseId, request, userId) =>
-      log.info("here")
       var validList = List[ProgressModel]()
       var invalidList = List[SaveProgress]()
 
