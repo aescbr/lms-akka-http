@@ -8,6 +8,8 @@ object GuardianActor{
   trait GuardianMessage
   object CreateProgramManager extends GuardianMessage
   object CreateLatestManager extends GuardianMessage
+  object CreateProgressManager extends GuardianMessage
+  object CreateAuthorizationManager extends GuardianMessage
 
   trait GuardianActorTag
 }
@@ -17,6 +19,8 @@ class GuardianActor extends Actor with ActorLogging{
 
   val PROGRAM_MANAGER_NAME =  "program-manager";
   val LATEST_MANAGER_NAME =  "latest-manager";
+  val PROGRESS_MANAGER_NAME =  "progress-manager";
+  val AUTHORIZATION_MANAGER_NAME =  "authorization-manager";
 
   override def receive: Receive = {
     case CreateProgramManager =>
@@ -40,6 +44,8 @@ class GuardianActor extends Actor with ActorLogging{
   def getChild(name: String):Option[ActorRef] = {
     context.child(name)
   }
+
+
 
 
 }

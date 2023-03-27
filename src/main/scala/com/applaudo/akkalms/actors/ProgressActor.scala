@@ -7,6 +7,7 @@ import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.GuardianActor.{CreateLatestManager, GuardianActorTag}
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
+import com.applaudo.akkalms.actors.ProgressManager.ProcessProgress
 import com.softwaremill.tagging.@@
 
 import scala.concurrent.Future
@@ -55,6 +56,22 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long)
         }
         progressList = progressList.::(progress)
       }
+
+    case process @ ProcessProgress(progress: List[ProgressModel]) =>
+      progress.foreach{ model =>
+        val progressEvent = SaveProgress(programId, courseId, model.contentId, userId, model.completed)
+        persist(progressEvent){event =>
+          log.info(s"saving $event")
+          val futureGuardian = getLatestManager
+          futureGuardian.map {
+            latestManager: ActorRef => {
+              latestManager ! model
+            }
+          }
+          progressList = progressList.::(progressEvent)
+        }
+      }
+      sender() ! process
   }
 
   override def persistenceId: String = s"progress-actor-$programId-$courseId-$userId"

@@ -3,17 +3,15 @@ package com.applaudo.akkalms
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import com.applaudo.akkalms.actors.{GuardianActor, ProgramManager}
+import com.applaudo.akkalms.actors.GuardianActor
 import com.typesafe.config.ConfigFactory
 
 
 object MainApp extends App{
   import com.applaudo.akkalms.actors.AuthorizationActor._
   import com.applaudo.akkalms.actors.GuardianActor.GuardianActorTag
-  import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
-  import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
   import com.applaudo.akkalms.actors.ProgressManager.ProgressManagerTag
-  import com.applaudo.akkalms.actors.{AuthorizationActor, LatestManager, ProgressManager}
+  import com.applaudo.akkalms.actors.{AuthorizationActor, ProgressManager}
   import com.applaudo.akkalms.http.ProgressRouter
   import com.softwaremill.macwire._
   import com.softwaremill.macwire.akkasupport._
@@ -24,9 +22,6 @@ object MainApp extends App{
 
   implicit val guardianActor: ActorRef @@ GuardianActorTag = wireActor[GuardianActor]("guardian-actor")
     .taggedWith[GuardianActorTag]
-
-  val programManager : ActorRef @@ ProgramManagerTag = wireActor[ProgramManager]("program-manager")
-    .taggedWith[ProgramManagerTag]
 
   val progressManager = wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
 

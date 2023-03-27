@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor._
+import com.applaudo.akkalms.actors.GuardianActor.GuardianActorTag
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
 import com.applaudo.akkalms.actors.ProgressManager.{AddProgressRequest, ProgressManagerTag}
@@ -22,7 +23,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
-                     progressManager: ActorRef @@ ProgressManagerTag) {
+                     progressManager: ActorRef @@ ProgressManagerTag)
+                    (implicit guardianActor: ActorRef @@ GuardianActorTag) {
 
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
@@ -30,6 +32,7 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
   implicit val timeout: Timeout = Timeout(10 seconds)
 
   def securityLogic(token: String): Future[Either[(StatusCode, List[SaveProgress]), AuthorizedUser]] = {
+
     val authResult = (authorizationActor ? ProgressAuthorization(Option[String](token))).mapTo[AuthorizationResponse]
     authResult.map {
       case AuthorizedUser(userId) => Right(AuthorizedUser(userId))

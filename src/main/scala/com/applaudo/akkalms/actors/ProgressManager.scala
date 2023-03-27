@@ -5,7 +5,6 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.GuardianActor.{CreateProgramManager, GuardianActorTag}
-import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
 import com.softwaremill.tagging.@@
@@ -17,15 +16,13 @@ import scala.concurrent.duration.DurationInt
 
 object ProgressManager {
   case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
-
-  case class SelfMessage(request: AddProgressRequest, validation: (List[ProgressModel], List[SaveProgress]))
+  case class ProcessProgress(progress: List[ProgressModel])
 
   trait ProgressManagerTag
 
 }
 
-class ProgressManager()
-                     (implicit guardianActor: ActorRef @@ GuardianActorTag) extends Actor with ActorLogging {
+class ProgressManager()(implicit guardianActor: ActorRef @@ GuardianActorTag) extends Actor with ActorLogging {
 
   import ProgressManager._
 
@@ -44,13 +41,22 @@ class ProgressManager()
           result.map { validation =>
             if (validation._1.nonEmpty && validation._2.isEmpty) {
               val progressActor = getChild(programId, courseId, userId)
-              validation._1.foreach { p => progressActor ! p }
+              //validation._1.foreach { p => progressActor ! p }
+              val persistResult = (progressActor ? ProcessProgress(validation._1: List[ProgressModel]))
+                .mapTo[ProcessProgress]
+
+              persistResult.map { _ =>
+                result.pipeTo(router)
+              }
+            }else{
+              result.pipeTo(router)
             }
-            result.pipeTo(router)
           }
         }
       }
   }
+
+
 
   def getChild(programId: Long, courseId: Long, userId: Long): ActorRef = {
     val name = s"progress-actor-$programId-$courseId-$userId"
