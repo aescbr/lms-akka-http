@@ -1,33 +1,35 @@
 package com.applaudo.akkalms.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.pattern.ask
 import akka.util.Timeout
+import com.applaudo.akkalms.actors.LatestManager.AddProgressState
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.softwaremill.macwire.akkasupport.wireActor
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 
 object LatestManager {
   trait LatestManagerTag
+
+  case class AddProgressState(list: List[ProgressModel])
 }
 
 class LatestManager extends Actor with ActorLogging{
   import ProgressNormalizer._
 
-  implicit val timeout: Timeout = Timeout(3 seconds)
+  implicit val timeout: Timeout = Timeout(10 seconds)
 
   override def receive: Receive = {
-    case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
-      val progress = ProgressModel(programId, courseId, contentId, userId, completed, total)
-
-      //find or init child normalizer
+    case AddProgressState(list) =>
       val normalizer = getProgressNormalizerChild("progress-normalizer")
-      val result = (normalizer ? progress).mapTo[ProgressNormalizerResponse]
-      result.map{r =>
-        log.info(r.toString)
+      list.foreach{ progress =>
+        normalizer ! progress
       }
+
+    case SuccessInsert(progress, rows) =>
+      log.info(s"successfully inserted progress: $progress, rows: $rows")
+    case FailedInsert(progress, reason) =>
+      log.error(s"failed insertion progress $progress, reason: $reason")
   }
 
   def getProgressNormalizerChild(name: String): ActorRef = {

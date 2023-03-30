@@ -3,7 +3,10 @@ package com.applaudo.akkalms
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import com.applaudo.akkalms.actors.GuardianActor
+import akka.pattern.{BackoffOpts, BackoffSupervisor}
+import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
+import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
+import com.applaudo.akkalms.actors.{GuardianActor, LatestManager, ProgramManager}
 import com.typesafe.config.ConfigFactory
 
 
@@ -17,13 +20,17 @@ object MainApp extends App{
   import com.softwaremill.macwire.akkasupport._
   import com.softwaremill.tagging.{@@, Tagger}
 
-  implicit val system: ActorSystem = ActorSystem("cassandraSystem", ConfigFactory.load().getConfig("cassandra"))
+  implicit val system: ActorSystem = ActorSystem("lms-akka", ConfigFactory.load().getConfig("cassandra"))
 
+  val programManager = wireActor[ProgramManager]("program-manager").taggedWith[ProgramManagerTag]
+  val latestManager = wireActor[LatestManager]("latest-manager").taggedWith[LatestManagerTag]
 
-  implicit val guardianActor: ActorRef @@ GuardianActorTag = wireActor[GuardianActor]("guardian-actor")
-    .taggedWith[GuardianActorTag]
+  def initProgressManager(programManager : ActorRef @@ ProgramManagerTag,
+                          latestManager: ActorRef @@LatestManagerTag) : ActorRef @@ ProgressManagerTag =
+    wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
 
-  val progressManager = wireActor[ProgressManager]("progress-manager").taggedWith[ProgressManagerTag]
+  val progressManager: ActorRef @@ ProgressManager.ProgressManagerTag =
+    initProgressManager(programManager, latestManager)
 
   val authorizationActor : ActorRef @@ AuthorizationActorTag =
     wireActor[AuthorizationActor]("authorization-actor").taggedWith[AuthorizationActorTag]

@@ -23,24 +23,23 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
-                     progressManager: ActorRef @@ ProgressManagerTag)
-                    (implicit guardianActor: ActorRef @@ GuardianActorTag) {
+                     progressManager: ActorRef @@ ProgressManagerTag) {
 
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._
 
   implicit val timeout: Timeout = Timeout(10 seconds)
 
-  def securityLogic(token: String): Future[Either[(StatusCode, List[SaveProgress]), AuthorizedUser]] = {
+  def securityLogic(token: String): Future[Either[StatusCode, AuthorizedUser]] = {
 
     val authResult = (authorizationActor ? ProgressAuthorization(Option[String](token))).mapTo[AuthorizationResponse]
     authResult.map {
       case AuthorizedUser(userId) => Right(AuthorizedUser(userId))
-      case UnauthorizedUser => Left((StatusCode.Unauthorized, List()))
+      case UnauthorizedUser => Left(StatusCode.Unauthorized)
     }
   }
 
-  val addProgress: Endpoint[String, (Long, Long, ProgressRequest), (StatusCode, List[SaveProgress]), StatusCode, Any] =
+  val addProgress: Endpoint[String, (Long, Long, ProgressRequest), StatusCode, StatusCode, Any] =
     endpoint
       .post
       .in("api" / "v1" / "programs" / path[Long]("programId") / "courses" /path[Long]("courseId")
@@ -49,7 +48,6 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
       .securityIn(bearer[String]()) // to get the token without the Bearer prefix
       .out(statusCode)
       .errorOut(statusCode)
-      .errorOut(jsonBody[List[SaveProgress]])
       .description("To add progress to a specific content of a program")
 
   val addProgressEndpoint: Route =
@@ -60,13 +58,8 @@ class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
           (in: (Long, Long, ProgressRequest)) =>
             authorizedResult match {
               case AuthorizedUser(userId) =>
-               val result = (progressManager ? AddProgressRequest(in._1, in._2, in._3, userId))
-                 .mapTo[(List[ProgressModel], List[SaveProgress])]
-
-                result.map{
-                  case (_, invalid) if invalid.nonEmpty => Left(StatusCode.BadRequest, invalid)
-                  case (valid, invalid) if valid.nonEmpty && invalid.isEmpty => Right(StatusCode.Created)
-                }
+                progressManager ! AddProgressRequest(in._1, in._2, in._3, userId)
+                Future.successful(Right(StatusCode.Accepted))
             }
         })
 

@@ -1,7 +1,6 @@
 package com.applaudo.akkalms.actors
 
 import akka.actor.{Actor, ActorLogging}
-import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 
 object ProgramManager {
@@ -11,6 +10,9 @@ object ProgramManager {
   case class ContentT(name: String, description: String, total: Int)
   case class UserT(firstname: String, lastname: String, email: String)
   case class ProgressModel(programId: Long, courseId: Long, contentId: Long, userId: Long, completed: Int, total: Int)
+
+  sealed trait ProgramManagerResponse
+  final case class ValidationResponse(validList :List[ProgressModel], nonValidList: List[ProgressModel])
 
   trait ProgramManagerTag
 }
@@ -46,20 +48,19 @@ import ProgramManager._
   override def receive: Receive = {
     case AddProgressRequest(programId, courseId, request, userId) =>
       var validList = List[ProgressModel]()
-      var invalidList = List[SaveProgress]()
+      var nonValidList = List[ProgressModel]()
 
       request.contents.foreach{ content =>
-        val progress = SaveProgress(programId, courseId, content.contentId, userId, content.completed)
-        if(validateRequest(programId, courseId, content.contentId, userId)){
-          val contentTuple = validateCompleted(content.contentId, content.completed)
-          validList = validList.::(ProgressModel(programId, courseId, content.contentId, userId,
-            contentTuple._1, contentTuple._2))
+        val contentTuple = validateCompleted(content.contentId, content.completed)
+        val progress = ProgressModel(programId, courseId, content.contentId, userId, contentTuple._1, contentTuple._2)
+        if(validateRequest(progress)){
+          validList = validList.::(progress)
         }else {
-          invalidList = invalidList.::(progress)
+          nonValidList = nonValidList.::(progress)
         }
       }
 
-      sender() ! (validList, invalidList)
+      sender() ! ValidationResponse(validList, nonValidList)
   }
 
   def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {
@@ -72,39 +73,41 @@ import ProgramManager._
         else if (completed < 0)
           (0, content.total)
         else (completed, content.total)
+      case None =>
+        (completed,0)
     }
   }
 
   //TODO validate request
-  def validateRequest(programId: Long, courseId: Long, contentId: Long, userId: Long): Boolean ={
+  def validateRequest(progressModel: ProgressModel): Boolean ={
     var flag = true
-    val program = registeredPrograms.get(programId)
-    val course = registeredCourses.get(courseId)
-    val content = registeredContent.get(contentId)
-    val user = registeredUsers.get(userId)
+    val program = registeredPrograms.get(progressModel.programId)
+    val course = registeredCourses.get(progressModel.courseId)
+    val content = registeredContent.get(progressModel.contentId)
+    val user = registeredUsers.get(progressModel.userId)
 
     program match {
       case None =>
         flag = false
-        log.error(s"program with id: ${programId}, not found")
+        log.error(s"program with id: ${progressModel.programId}, not found")
       case Some(_) => ()
     }
     course match {
       case None =>
         flag = false
-        log.error(s"course with id: ${courseId}, not found")
+        log.error(s"course with id: ${progressModel.courseId}, not found")
       case Some(_) => ()
     }
     content match {
       case None =>
         flag = false
-        log.error(s"content with id: ${contentId}, not found")
+        log.error(s"content with id: ${progressModel.contentId}, not found")
       case Some(_) => ()
     }
     user match {
       case None =>
         flag = false
-        log.error(s"user with id: ${userId}, not found")
+        log.error(s"user with id: ${progressModel.userId}, not found")
       case Some(_) => ()
     }
     flag

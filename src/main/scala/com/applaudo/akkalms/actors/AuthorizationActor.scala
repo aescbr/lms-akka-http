@@ -12,9 +12,9 @@ object AuthorizationActor{
   case class ProgressRequest(contents: List[ContentProgress])
   case class ContentProgress(contentId: Long, completed: Int)
 
-  trait AuthorizationResponse
-  case class AuthorizedUser(userId: Long) extends AuthorizationResponse
-  object UnauthorizedUser extends AuthorizationResponse
+  sealed trait AuthorizationResponse
+  final case class AuthorizedUser(userId: Long) extends AuthorizationResponse //good to read, final and sealed
+  final case object UnauthorizedUser extends AuthorizationResponse
 }
 
 class AuthorizationActor extends Actor with ActorLogging{
