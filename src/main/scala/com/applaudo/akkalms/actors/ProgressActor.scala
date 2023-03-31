@@ -1,6 +1,6 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{ActorLogging, ActorRef}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem}
 import akka.persistence.PersistentActor
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
@@ -19,11 +19,13 @@ object ProgressActor {
   sealed trait ProgressCommand
   case class AddProgress(request: ProgressRequest) extends ProgressCommand
 
-  case object ProgressPersistSuccess
-  case object ProgressPersistFail
+  sealed trait ProgressManagerResponse
+  final case class CheckPendingMessages(progressActor: ActorRef) extends ProgressManagerResponse
+  final case object SetPersistFail extends ProgressManagerResponse
+  final case class AckPersistSuccess(originalRequest: AddProgressRequest)
+  final case class AckPersistFail(originalRequest: AddProgressRequest)
 
-  case class CheckPendingMessages(progressActor: ActorRef)
-  case object SetPersistFail
+  case class ProgressPersistException(progressActor: ActorRef) extends RuntimeException
 
 }
 
@@ -37,37 +39,40 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long,
   import com.applaudo.akkalms.actors.ProgramManager._
   import com.applaudo.akkalms.actors.ProgressActor._
 
-  var progressList: List[ProgressModel] = List[ProgressModel]()
+  var progressList: Set[ProgressModel] = Set[ProgressModel]()
 
   implicit val timeout: Timeout = Timeout(10 seconds)
 
   override def receiveRecover: Receive = {
     case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
       val progress = ProgressModel(programId, courseId, contentId, userId, completed, total)
-      log.info(s"recovered $progress")
-      progressList = progressList.::(progress)
+      progressList = progressList + progress
   }
 
   override def receiveCommand: Receive  = {
     case AddProgressRequest(programId, courseId, request, userId) =>
-      log.info("send to validation")
       programManager ! AddProgressRequest(programId, courseId, request, userId)
 
-    case ValidationResponse(validList, nonValidList) =>
-      if (nonValidList.isEmpty && validList.nonEmpty) {
-        log.info(s"received valid progress list: $validList ")
-          persistAll(validList) { events =>
+    case validation :ValidationResponse =>
+      var nonDuplicated : Set[ProgressModel] = Set[ProgressModel]()
+      validation.validList.foreach{ p =>
+        if(!progressList.contains(p)){
+          nonDuplicated = nonDuplicated + p
+        }
+      }
+
+      if (validation.nonValidList.isEmpty && validation.validList.nonEmpty && nonDuplicated.nonEmpty) {
+          persistAll(validation.validList) { events =>
             log.info(s"persisting $events")
-            progressList = progressList.:::(validList)
-            latestManager ! AddProgressState(validList)
-            // context.parent !
+            progressList = progressList.++(nonDuplicated)
+            latestManager ! AddProgressState(nonDuplicated)
+            manager ! AckPersistSuccess(validation.originalRequest)
           }
       } else {
-        log.error("received non valid progress list")
-        nonValidList.foreach{ nonValidProgress =>
+        validation.nonValidList.foreach{ nonValidProgress =>
           log.error(nonValidProgress.toString)
         }
-        //context.parent !
+        manager ! AckPersistFail(validation.originalRequest)
       }
   }
 
@@ -84,5 +89,6 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long,
     if(!previousPersistFail)
       manager ! SetPersistFail
   }
+
 
 }

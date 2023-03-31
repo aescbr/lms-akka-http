@@ -12,7 +12,8 @@ object ProgramManager {
   case class ProgressModel(programId: Long, courseId: Long, contentId: Long, userId: Long, completed: Int, total: Int)
 
   sealed trait ProgramManagerResponse
-  final case class ValidationResponse(validList :List[ProgressModel], nonValidList: List[ProgressModel])
+  final case class ValidationResponse(validList :List[ProgressModel], nonValidList: List[ProgressModel],
+                                      originalRequest :AddProgressRequest) extends ProgramManagerResponse
 
   trait ProgramManagerTag
 }
@@ -53,14 +54,15 @@ import ProgramManager._
       request.contents.foreach{ content =>
         val contentTuple = validateCompleted(content.contentId, content.completed)
         val progress = ProgressModel(programId, courseId, content.contentId, userId, contentTuple._1, contentTuple._2)
+
         if(validateRequest(progress)){
           validList = validList.::(progress)
         }else {
           nonValidList = nonValidList.::(progress)
         }
       }
-
-      sender() ! ValidationResponse(validList, nonValidList)
+      val originalRequest = AddProgressRequest(programId, courseId, request, userId)
+      sender() ! ValidationResponse(validList, nonValidList, originalRequest)
   }
 
   def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {

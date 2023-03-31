@@ -1,6 +1,6 @@
 package com.applaudo.akkalms.http
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor._
@@ -22,8 +22,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
-                     progressManager: ActorRef @@ ProgressManagerTag) {
+case class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
+                     progressManager: ActorRef @@ ProgressManagerTag)(implicit actorSystem: ActorSystem) {
 
   import akka.pattern.ask
   import com.applaudo.akkalms.actors.AuthorizationActor._

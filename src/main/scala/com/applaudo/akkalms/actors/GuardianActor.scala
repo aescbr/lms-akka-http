@@ -39,6 +39,7 @@ class GuardianActor extends Actor with ActorLogging{
         case None =>  wireActor[LatestManager](LATEST_MANAGER_NAME)
       }
       sender() ! latestManager
+
   }
 
   def getChild(name: String):Option[ActorRef] = {

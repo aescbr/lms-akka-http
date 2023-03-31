@@ -1,16 +1,18 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.SupervisorStrategy.{Escalate, Restart, Resume, Stop, stoppingStrategy}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, OneForOneStrategy, PoisonPill, Props, Terminated}
 import akka.pattern.{BackoffOpts, BackoffSupervisor}
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
 import com.applaudo.akkalms.actors.ProgramManager.{ProgramManagerTag, ProgressModel, ValidationResponse}
-import com.applaudo.akkalms.actors.ProgressActor.{CheckPendingMessages, SetPersistFail}
+import com.applaudo.akkalms.actors.ProgressActor.{AckPersistFail, AckPersistSuccess, CheckPendingMessages, ProgressPersistException, SetPersistFail}
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 import com.softwaremill.tagging.@@
 
 import scala.concurrent.duration.DurationInt
+import scala.util.control.Breaks.break
 
 
 object ProgressManager {
@@ -18,14 +20,11 @@ object ProgressManager {
   case class ProcessProgress(progress: List[ProgressModel])
 
   trait ProgressManagerTag
-
-  case class RetryPersistMessage(validatedResponse: ValidationResponse, progressActor: ActorRef)
-  case class ErrorMessage(message : RetryPersistMessage)
-  case object ChildStopped
 }
 
 class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
-                      latestManager: ActorRef @@ LatestManagerTag ) extends Actor with ActorLogging {
+                      latestManager: ActorRef @@ LatestManagerTag )
+                     (implicit actorSystem: ActorSystem) extends Actor with ActorLogging {
 
   implicit val timeout: Timeout = Timeout(10 seconds)
 
@@ -37,7 +36,6 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
       val progressActor = getChild(programId, courseId, userId)
       val progress = AddProgressRequest(programId, courseId, request, userId)
       pendingMessages = pendingMessages + progress
-
       progressActor ! progress
 
     case SetPersistFail =>
@@ -50,31 +48,41 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
           }
         }
 
+    case success : AckPersistSuccess =>
+      pendingMessages = pendingMessages - success.originalRequest
+      log.info(s"successfully persisted: ${success.originalRequest}")
+      updatePendingMessages()
+
+    case validationFail : AckPersistFail =>
+      log.info(s"validation failed on: ${validationFail.originalRequest}")
+      pendingMessages = pendingMessages - validationFail.originalRequest
+      updatePendingMessages()
+  }
+
+  def updatePendingMessages(): Unit = {
+    if(pendingMessages.isEmpty) {
+      persistFail = false
+    }
   }
 
   def getChild(programId: Long, courseId: Long, userId: Long): ActorRef = {
     val name = s"progress-actor-$programId-$courseId-$userId"
-    val progressActor =
-    context.child(name) match {
-      case Some(child) =>
-        child
+    val supervisorName = "progress-supervisor"
+
+    val progressActorProps = Props(new ProgressActor(programId, courseId, userId,
+    programManager, latestManager, self, persistFail))
+    context.child(supervisorName) match {
       case None =>
-        val progressActorProps = Props(new ProgressActor(programId, courseId, userId,
-          programManager, latestManager, self, persistFail))
-
         val supervisorProps = BackoffSupervisor.props(
-          BackoffOpts
-            .onStop(
-              progressActorProps,
-              childName = name,
-              minBackoff = 3.seconds,
-              maxBackoff = 30.seconds,
-              randomFactor = 0.2))
-        val supervisor = context.actorOf(supervisorProps)
-       context.actorOf(progressActorProps, name)
+           BackoffOpts
+             .onStop(
+               progressActorProps,
+               childName = name,
+               minBackoff = 3.seconds,
+               maxBackoff = 30.seconds,
+               randomFactor = 0.2))
+          context.actorOf(supervisorProps, supervisorName)
+      case Some(sup) => sup
     }
-    progressActor
   }
-
-
 }
