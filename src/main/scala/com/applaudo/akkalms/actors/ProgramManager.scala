@@ -1,6 +1,6 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 
 object ProgramManager {
@@ -11,9 +11,10 @@ object ProgramManager {
   case class UserT(firstname: String, lastname: String, email: String)
   case class ProgressModel(programId: Long, courseId: Long, contentId: Long, userId: Long, completed: Int, total: Int)
 
-  sealed trait ProgramManagerResponse
+  sealed trait ProgramManagerMessage
   final case class ValidationResponse(validList :List[ProgressModel], nonValidList: List[ProgressModel],
-                                      originalRequest :AddProgressRequest) extends ProgramManagerResponse
+                                      originalRequest :AddProgressRequest) extends ProgramManagerMessage
+  final case class ValidationRequest(addProgressRequest: AddProgressRequest, replyTo: ActorRef)
 
   trait ProgramManagerTag
 }
@@ -47,7 +48,7 @@ import ProgramManager._
   )
 
   override def receive: Receive = {
-    case AddProgressRequest(programId, courseId, request, userId) =>
+    case ValidationRequest(AddProgressRequest(programId, courseId, request, userId), replyTo: ActorRef) =>
       var validList = List[ProgressModel]()
       var nonValidList = List[ProgressModel]()
 
@@ -62,7 +63,7 @@ import ProgramManager._
         }
       }
       val originalRequest = AddProgressRequest(programId, courseId, request, userId)
-      sender() ! ValidationResponse(validList, nonValidList, originalRequest)
+      replyTo ! ValidationResponse(validList, nonValidList, originalRequest)
   }
 
   def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {

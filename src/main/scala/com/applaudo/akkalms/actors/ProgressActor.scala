@@ -39,25 +39,25 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long,
   import com.applaudo.akkalms.actors.ProgramManager._
   import com.applaudo.akkalms.actors.ProgressActor._
 
-  var progressList: Set[ProgressModel] = Set[ProgressModel]()
+  var progressList: List[ProgressModel] = List[ProgressModel]()
 
   implicit val timeout: Timeout = Timeout(10 seconds)
 
   override def receiveRecover: Receive = {
     case ProgressModel(programId, courseId, contentId, userId, completed, total) =>
       val progress = ProgressModel(programId, courseId, contentId, userId, completed, total)
-      progressList = progressList + progress
+      progressList = progressList.::(progress)
   }
 
   override def receiveCommand: Receive  = {
     case AddProgressRequest(programId, courseId, request, userId) =>
-      programManager ! AddProgressRequest(programId, courseId, request, userId)
+      programManager ! ValidationRequest(AddProgressRequest(programId, courseId, request, userId), self)
 
     case validation :ValidationResponse =>
-      var nonDuplicated : Set[ProgressModel] = Set[ProgressModel]()
+      var nonDuplicated : List[ProgressModel] = List[ProgressModel]()
       validation.validList.foreach{ p =>
         if(!progressList.contains(p)){
-          nonDuplicated = nonDuplicated + p
+          nonDuplicated = nonDuplicated.::(p)
         }
       }
 

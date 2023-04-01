@@ -11,7 +11,7 @@ import scala.concurrent.duration.DurationInt
 object LatestManager {
   trait LatestManagerTag
 
-  case class AddProgressState(list: Set[ProgressModel])
+  case class AddProgressState(list: List[ProgressModel])
 }
 
 class LatestManager extends Actor with ActorLogging{
