@@ -17,6 +17,7 @@ resolvers += Resolver.jcenterRepo
 libraryDependencies ++= Seq(
    "com.typesafe" % "config" % "1.4.2",
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
+  "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8",
   // akka streams
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
 
@@ -28,6 +29,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-persistence-query" % akkaVersion,
   "com.typesafe.akka" %% "akka-protobuf" % akkaVersion,
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
 
   // Cassandra
   "com.typesafe.akka" %% "akka-persistence-cassandra" % cassandraVersion,
