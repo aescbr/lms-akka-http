@@ -4,7 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Kill}
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.LatestManager.AddProgressState
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
+import com.applaudo.akkalms.databseDAO.ProgressQueriesImpl
 import com.softwaremill.macwire.akkasupport.wireActor
+import com.softwaremill.macwire.wire
 
 import scala.concurrent.duration.DurationInt
 
@@ -23,14 +25,14 @@ class LatestManager extends Actor with ActorLogging{
     case AddProgressState(list) =>
       val normalizer = getProgressNormalizerChild("progress-normalizer")
       list.foreach{ progress =>
-        normalizer ! progress
+        normalizer ! SaveState(progress, self)
       }
 
     case SuccessInsert(progress, rows) =>
-      log.info(s"successfully inserted progress: $progress, rows: $rows")
+      log.info(s"successfully inserted $progress, rows: $rows")
 
-    case FailedInsert(progress, reason) =>
-      log.error(s"failed insertion progress $progress, reason: $reason")
+    case FailedInsert(progress) =>
+      log.error(s"failed insertion $progress")
 
   }
 
@@ -39,7 +41,11 @@ class LatestManager extends Actor with ActorLogging{
       case Some(child) =>
         child
       case None =>
-         wireActor[ProgressNormalizer](name)
+        val progressQueries = wire[ProgressQueriesImpl]
+        wireActor[ProgressNormalizer](name)
+
     }
   }
+
+
 }
