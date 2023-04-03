@@ -8,12 +8,23 @@ import cats._
 import cats.effect._
 import cats.implicits._
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
+import doobie.util.transactor.Transactor.Aux
+import org.postgresql.util.PSQLException
 
-object ProgressQueries {
+import java.sql.SQLException
+
+trait ProgressQueries {
+  val xa: Aux[IO, Unit] = PostgresDAO.xa
+
+  def insert(progress: ProgressModel): Int
+
+  def getContentTotal(contentId: Long): Int
+}
+
+class ProgressQueriesImpl extends ProgressQueries {
   import cats.effect.unsafe.implicits.global
 
-  val xa = PostgresDAO.xa
-
+  @throws(classOf[SQLException])
   def insert(progress: ProgressModel): Int = {
     sql"""
       INSERT INTO course_progress (program_id, course_id, content_id, user_id, completed, total)
@@ -37,5 +48,4 @@ object ProgressQueries {
       .transact(xa)
       .unsafeRunSync()
   }
-
 }
