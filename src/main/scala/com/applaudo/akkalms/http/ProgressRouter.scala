@@ -39,6 +39,16 @@ case class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     }
   }
 
+  def serverLogic(authorizedResult: AuthorizedUser)
+                 (in :(Long, Long, ProgressRequest)): Future[Either[StatusCode, StatusCode]] = {
+    authorizedResult match {
+      case AuthorizedUser(userId) =>
+        progressManager ! AddProgressRequest(in._1, in._2, in._3, userId)
+        Future.successful(Right(StatusCode.Accepted))
+    }
+
+  }
+
   val addProgress: Endpoint[String, (Long, Long, ProgressRequest), StatusCode, StatusCode, Any] =
     endpoint
       .post
@@ -54,14 +64,8 @@ case class ProgressRouter(authorizationActor: ActorRef @@ AuthorizationActorTag,
     AkkaHttpServerInterpreter()
       .toRoute(addProgress
         .serverSecurityLogic(securityLogic)
-        .serverLogic { (authorizedResult: AuthorizedUser) =>
-          (in: (Long, Long, ProgressRequest)) =>
-            authorizedResult match {
-              case AuthorizedUser(userId) =>
-                progressManager ! AddProgressRequest(in._1, in._2, in._3, userId)
-                Future.successful(Right(StatusCode.Accepted))
-            }
-        })
+        .serverLogic(serverLogic)
+      )
 
   val apiEndpoints: List[AnyEndpoint] = List(addProgress)
 
