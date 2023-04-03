@@ -3,16 +3,14 @@ package com.applaudo.akkalms
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import akka.pattern.{BackoffOpts, BackoffSupervisor}
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
 import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
-import com.applaudo.akkalms.actors.{GuardianActor, LatestManager, ProgramManager}
+import com.applaudo.akkalms.actors.{LatestManager, ProgramManager}
 import com.typesafe.config.ConfigFactory
 
 
 object MainApp extends App{
   import com.applaudo.akkalms.actors.AuthorizationActor._
-  import com.applaudo.akkalms.actors.GuardianActor.GuardianActorTag
   import com.applaudo.akkalms.actors.ProgressManager.ProgressManagerTag
   import com.applaudo.akkalms.actors.{AuthorizationActor, ProgressManager}
   import com.applaudo.akkalms.http.ProgressRouter
