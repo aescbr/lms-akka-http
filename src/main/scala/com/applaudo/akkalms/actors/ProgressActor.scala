@@ -17,7 +17,7 @@ object ProgressActor {
                           completed: Int) extends ProgressEvent
 
   sealed trait ProgressCommand
-  case class AddProgress(request: ProgressRequest) extends ProgressCommand
+  final case class AddProgress(request: ProgressRequest) extends ProgressCommand
 
   sealed trait ProgressManagerResponse
   final case class CheckPendingMessages(progressActor: ActorRef) extends ProgressManagerResponse
