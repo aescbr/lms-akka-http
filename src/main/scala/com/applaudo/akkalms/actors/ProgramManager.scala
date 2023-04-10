@@ -1,6 +1,7 @@
 package com.applaudo.akkalms.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 
 object ProgramManager {
@@ -35,7 +36,7 @@ import ProgramManager._
   //Users
   var registeredUsers: Map[Long, UserT] = Map(
     1L -> UserT("user1", "lastname1", "user1@applaudostudios.com"),
-    1L -> UserT("user2", "lastname2", "user2@applaudostudios.com")
+    2L -> UserT("user2", "lastname2", "user2@applaudostudios.com")
   )
 
   //Contents
@@ -48,22 +49,31 @@ import ProgramManager._
   )
 
   override def receive: Receive = {
-    case ValidationRequest(AddProgressRequest(programId, courseId, request, userId), replyTo: ActorRef) =>
-      var validList = List[ProgressModel]()
-      var nonValidList = List[ProgressModel]()
+    case validationRequest : ValidationRequest =>
+      validationRequest.replyTo ! aggregateProgressLists(validationRequest)
+  }
 
-      request.contents.foreach{ content =>
-        val contentTuple = validateCompleted(content.contentId, content.completed)
-        val progress = ProgressModel(programId, courseId, content.contentId, userId, contentTuple._1, contentTuple._2)
+  def aggregateProgressLists(validationRequest: ValidationRequest): ValidationResponse = {
+    var validList = List[ProgressModel]()
+    var nonValidList = List[ProgressModel]()
+    val progressRequest = validationRequest.addProgressRequest
 
-        if(validateRequest(progress)){
-          validList = validList.::(progress)
-        }else {
-          nonValidList = nonValidList.::(progress)
-        }
+    progressRequest.request.contents.foreach{ content =>
+      val contentTuple = validateCompleted(content.contentId, content.completed)
+      val progress = ProgressModel(
+        progressRequest.programId,
+        progressRequest.courseId,
+        content.contentId,
+        progressRequest.userId,
+        contentTuple._1, contentTuple._2)
+
+      if(validateRequest(progress)){
+        validList = validList.::(progress)
+      }else {
+        nonValidList = nonValidList.::(progress)
       }
-      val originalRequest = AddProgressRequest(programId, courseId, request, userId)
-      replyTo ! ValidationResponse(validList, nonValidList, originalRequest)
+    }
+    ValidationResponse(validList, nonValidList, progressRequest)
   }
 
   def validateCompleted(contentId: Long, completed: Int) :(Int, Int)= {
