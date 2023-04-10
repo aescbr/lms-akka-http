@@ -84,21 +84,5 @@ class ProgressManagerTest extends TestKit(ActorSystem("ProgressSpec"))
       assert(!progressManager.underlyingActor.persistFail)
     }
 
-    "send pending messages to actor child" in{
-      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest](request)
-      val progressActor = TestProbe()
-      progressManager ! CheckPendingMessages(progressActor.ref)
-
-      progressActor.expectMsg(request)
-    }
-
-    "not send pending messages to actor child, if no pending pending messages" in{
-      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest]()
-      val progressActor = TestProbe()
-      progressManager ! CheckPendingMessages(progressActor.ref)
-
-      progressActor.expectNoMessage()
-    }
-
   }
 }

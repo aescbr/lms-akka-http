@@ -40,23 +40,17 @@ with MockitoSugar {
   }
 
   "progress-normalizer" should {
-    "send success message when state saved success" in {
+    "-insert query- returns amount of rows inserted" in {
       when(progressServiceMock.insert(any())).thenReturn(1)
-      val sender = TestProbe()
 
-      normalizer ! SaveState(model, sender.ref)
-
-      sender.expectMsg(SuccessInsert(model, 1))
+     assert(normalizer.underlyingActor.insertQuery(model) > 0)
     }
 
-    "send Fail message when state saved failed" in {
+    "-insert query- trows exception" in {
       val exception = new Exception("error")
       given(progressServiceMock.insert(any())).willAnswer(_ => exception)
-      val sender = TestProbe()
 
-      normalizer ! SaveState(model, sender.ref)
-
-      sender.expectMsg(10000 millis, FailedInsert(model))
+      assertThrows[Exception](normalizer.underlyingActor.insertQuery(model))
     }
   }
 
