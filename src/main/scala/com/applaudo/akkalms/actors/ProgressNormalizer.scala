@@ -5,14 +5,13 @@ import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.applaudo.akkalms.actors.ProgressNormalizer.{FailedInsert, SaveState, SuccessInsert}
 import com.applaudo.akkalms.databseDAO.ProgressQueries
 
-import java.sql.SQLException
-
 object ProgressNormalizer{
   sealed trait ProgressNormalizerResponse
   final case class SuccessInsert(progress: ProgressModel, insertedRows: Int) extends ProgressNormalizerResponse
   final case class FailedInsert(progress: ProgressModel) extends ProgressNormalizerResponse
 
-  case class SaveState(model: ProgressModel, replyTo: ActorRef)
+  sealed trait ProgressNormalizerMessage
+  final case class SaveState(model: ProgressModel, replyTo: ActorRef) extends ProgressNormalizerMessage
 
 }
 
