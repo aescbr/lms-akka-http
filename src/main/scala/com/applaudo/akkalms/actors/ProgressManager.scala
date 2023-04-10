@@ -15,8 +15,11 @@ import scala.concurrent.duration.DurationInt
 
 
 object ProgressManager {
-  case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
-  case class ProcessProgress(progress: List[ProgressModel])
+  sealed trait ProgressManagerMessage
+
+  final case class AddProgressRequest(programId: Long, courseId: Long, request: ProgressRequest, userId: Long)
+    extends ProgressManagerMessage
+  final case class ProcessProgress(progress: List[ProgressModel]) extends ProgressManagerMessage
 
   trait ProgressManagerTag
 }
