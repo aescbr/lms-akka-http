@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor._
-import com.applaudo.akkalms.actors.GuardianActor.GuardianActorTag
 import com.applaudo.akkalms.actors.ProgramManager.ProgressModel
 import com.applaudo.akkalms.actors.ProgressActor.SaveProgress
 import com.applaudo.akkalms.actors.ProgressManager.{AddProgressRequest, ProgressManagerTag}
