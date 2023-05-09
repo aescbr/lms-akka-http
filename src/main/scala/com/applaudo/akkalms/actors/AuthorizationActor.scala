@@ -19,28 +19,34 @@ object AuthorizationActor{
 
 class AuthorizationActor extends Actor with ActorLogging{
   import com.applaudo.akkalms.actors.AuthorizationActor._
+
+  var validToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwia" +
+    "WF0IjoxNTE2MjM5MDIyLCJleHAiOjE2NzY5MjU3NzEsImVtYWlsIjoidXNlckBhcHBsYXVkb3N0dWRpb3MuY29tIn0.REOkxtQvAP" +
+    "PcAJRGOFwqiYjTVozyiYYqWSqI5cMBGnQ"
+
   override def receive: Receive = {
-    case ProgressAuthorization(token) => {
+    case ProgressAuthorization(token) =>
       token match {
         case Some(value) =>
           //TODO token validation  should be here
-          if (value == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwia" +
-            "WF0IjoxNTE2MjM5MDIyLCJleHAiOjE2NzY5MjU3NzEsImVtYWlsIjoidXNlckBhcHBsYXVkb3N0dWRpb3MuY29tIn0.REOkxtQvAP" +
-            "PcAJRGOFwqiYjTVozyiYYqWSqI5cMBGnQ"){
-            log.info("authorized user")
-            sender() ! AuthorizedUser(userId = 1L)
-          }
-          else {
-            log.error("unauthorized user")
-            sender() ! UnauthorizedUser
-          }
+          if(validateToken(value)) sender() ! AuthorizedUser(userId = 1L)
+          else sender() ! UnauthorizedUser
 
         case None =>
           log.error("unauthorized user")
           sender() ! UnauthorizedUser
       }
-    }
+  }
 
+  def validateToken(token: String): Boolean = {
+    if (token == validToken) {
+      log.info("authorized user")
+      true
+    }
+    else {
+      log.error("unauthorized user")
+      false
+    }
   }
 
 }

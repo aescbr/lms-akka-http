@@ -1,24 +1,17 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import akka.actor.Props
+import akka.testkit.{TestActorRef, TestProbe}
 import com.applaudo.akkalms.actors.AuthorizationActor.{ContentProgress, ProgressRequest}
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
 import com.applaudo.akkalms.actors.ProgramManager.ProgramManagerTag
-import com.applaudo.akkalms.actors.ProgressActor.{AckPersistFail, AckPersistSuccess, CheckPendingMessages, SetPersistFail}
+import com.applaudo.akkalms.actors.ProgressActor.{AckPersistFail, AckPersistSuccess, SetPersistFail}
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
 import com.softwaremill.tagging.Tagger
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.must.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.mutable.ListBuffer
 
-class ProgressManagerTest extends TestKit(ActorSystem("ProgressSpec"))
-  with ImplicitSender
-  with AnyWordSpecLike
-  with Matchers
-  with BeforeAndAfterAll{
+class ProgressManagerTest extends BaseTest {
 
   var programManager :TestProbe = TestProbe()
   var latestManager : TestProbe = TestProbe()
@@ -37,19 +30,32 @@ class ProgressManagerTest extends TestKit(ActorSystem("ProgressSpec"))
 
   }
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
-  "progress-manager" must {
+  "progress-manager" should {
     "change persistFail to: true, when receives SetPersistFail" in {
       progressManager ! SetPersistFail
       assert(progressManager.underlyingActor.persistFail)
     }
 
-    "Add request to pendingMessages when receives AddProgressRequest" in {
+    "change persistFail to: true" in {
+      progressManager.underlyingActor.persistFail = false
+      progressManager.underlyingActor.setFailState()
+      assert(progressManager.underlyingActor.persistFail)
+    }
+
+    "add request to pendingMessages when receives AddProgressRequest" in {
       progressManager ! request
       assert(progressManager.underlyingActor.pendingMessages.nonEmpty)
+    }
+
+    "add original request to pending messages when received" in {
+      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest]()
+
+      // assert empty list
+      assert(progressManager.underlyingActor.pendingMessages.isEmpty)
+
+      progressManager.underlyingActor.delegateRequest(request)
+
+      progressManager.underlyingActor.pendingMessages shouldNot be(empty)
     }
 
     "remove request from pendingMessages and set persistFail: false, when receives AckPersistSuccess" in{
@@ -84,5 +90,33 @@ class ProgressManagerTest extends TestKit(ActorSystem("ProgressSpec"))
       assert(!progressManager.underlyingActor.persistFail)
     }
 
+    "change persist fail state to false, when pending messages list is empty" in{
+      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest]()
+      progressManager.underlyingActor.persistFail = true
+
+      // assert empty list
+      assert(progressManager.underlyingActor.pendingMessages.isEmpty)
+
+      progressManager.underlyingActor.updatePendingMessages()
+
+      assert(!progressManager.underlyingActor.persistFail)
+    }
+
+    "keep persist fail state true, when pending messages list is not empty" in{
+      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest](request)
+      progressManager.underlyingActor.persistFail = true
+
+      progressManager.underlyingActor.updatePendingMessages()
+
+      assert(progressManager.underlyingActor.persistFail)
+    }
+
+    "remove original message from pending list, when acknowledgement received" in {
+      progressManager.underlyingActor.pendingMessages = ListBuffer[AddProgressRequest](request)
+
+      progressManager.underlyingActor.removeOriginalRequest(request)
+
+      progressManager.underlyingActor.pendingMessages shouldBe empty
+    }
   }
 }

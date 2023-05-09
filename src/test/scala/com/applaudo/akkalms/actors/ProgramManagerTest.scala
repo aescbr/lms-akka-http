@@ -1,21 +1,14 @@
 package com.applaudo.akkalms.actors
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import akka.actor.Props
+import akka.testkit.{TestActorRef, TestProbe}
 import com.applaudo.akkalms.actors.AuthorizationActor.{ContentProgress, ProgressRequest}
-import com.applaudo.akkalms.actors.ProgramManager.{ContentT, CourseT, ProgramT, ProgressModel, UserT, ValidationRequest, ValidationResponse}
+import com.applaudo.akkalms.actors.ProgramManager._
 import com.applaudo.akkalms.actors.ProgressManager.AddProgressRequest
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.util.Random
 
-class ProgramManagerTest extends TestKit(ActorSystem("ProgramSpec"))
-with ImplicitSender
-with AnyWordSpecLike
-with Matchers
-with BeforeAndAfterAll {
+class ProgramManagerTest extends BaseTest {
 
   var programManager: TestActorRef[ProgramManager] = null
   var addRequest: AddProgressRequest = null
@@ -64,10 +57,6 @@ with BeforeAndAfterAll {
       request.userId,
       request.request.contents.head.completed,
       total)
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
   }
 
   "program-manager" should {

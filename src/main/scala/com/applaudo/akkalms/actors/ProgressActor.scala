@@ -13,7 +13,7 @@ import scala.concurrent.duration.DurationInt
 
 object ProgressActor {
   sealed trait ProgressEvent
-  case class SaveProgress(programId: Long, courseId: Long, contentId: Long, userId: Long,
+  final case class SaveProgress(programId: Long, courseId: Long, contentId: Long, userId: Long,
                           completed: Int) extends ProgressEvent
 
   sealed trait ProgressCommand
@@ -79,13 +79,11 @@ class ProgressActor(programId: Long, courseId: Long, userId: Long,
   override def persistenceId: String = s"progress-actor-$programId-$courseId-$userId"
 
   override def preStart(): Unit = {
-    log.info("---child actor before start---")
     if(previousPersistFail)
       manager ! CheckPendingMessages(self)
   }
 
   override def postStop(): Unit = {
-    log.info("---child actor stopped---")
     if(!previousPersistFail)
       manager ! SetPersistFail
   }

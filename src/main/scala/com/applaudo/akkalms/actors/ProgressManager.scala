@@ -2,7 +2,6 @@ package com.applaudo.akkalms.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.{BackoffOpts, BackoffSupervisor}
-import akka.util.Timeout
 import com.applaudo.akkalms.actors.AuthorizationActor.ProgressRequest
 import com.applaudo.akkalms.actors.LatestManager.LatestManagerTag
 import com.applaudo.akkalms.actors.ProgramManager.{ProgramManagerTag, ProgressModel}
@@ -28,20 +27,16 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
                       latestManager: ActorRef @@ LatestManagerTag)
                      (implicit actorSystem: ActorSystem) extends Actor with ActorLogging {
 
-  implicit val timeout: Timeout = Timeout(10 seconds)
 
   var pendingMessages: ListBuffer[AddProgressRequest] = ListBuffer[AddProgressRequest]()
   var persistFail = false
 
   override def receive: Receive = {
-    case AddProgressRequest(programId, courseId, request, userId) =>
-      val progressActor = getChild(programId, courseId, userId)
-      val progress = AddProgressRequest(programId, courseId, request, userId)
-      pendingMessages += progress
-      progressActor ! progress
+    case progress: AddProgressRequest =>
+      delegateRequest(progress)
 
     case SetPersistFail =>
-      persistFail = true
+      setFailState()
 
     case CheckPendingMessages(progressActor) =>
         if(pendingMessages.nonEmpty){
@@ -51,13 +46,13 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
         }
 
     case success : AckPersistSuccess =>
-      pendingMessages -= success.originalRequest
       log.info(s"successfully persisted: ${success.originalRequest}")
+      removeOriginalRequest(success.originalRequest)
       updatePendingMessages()
 
-    case validationFail : AckPersistFail =>
-      log.info(s"validation failed on: ${validationFail.originalRequest}")
-      pendingMessages -= validationFail.originalRequest
+    case fail : AckPersistFail =>
+      log.info(s"validation failed on: ${fail.originalRequest}")
+      removeOriginalRequest(fail.originalRequest)
       updatePendingMessages()
   }
 
@@ -66,6 +61,27 @@ class ProgressManager(programManager: ActorRef @@ ProgramManagerTag,
       persistFail = false
     }
   }
+
+
+  def delegateRequest(progress: AddProgressRequest): Unit ={
+    val progressActor = getChild(
+      progress.programId,
+      progress.courseId,
+      progress.userId)
+
+    pendingMessages += progress
+    progressActor ! progress
+  }
+
+  def removeOriginalRequest(request: AddProgressRequest): Unit ={
+    pendingMessages -= request
+    ()
+  }
+
+  def setFailState(): Unit ={
+    persistFail = true
+  }
+
 
   def getChild(programId: Long, courseId: Long, userId: Long): ActorRef = {
     val name = s"progress-actor-$programId-$courseId-$userId"
